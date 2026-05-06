@@ -1,0 +1,11 @@
+{
+  "name": "survey-app",
+  "version": "1.0.0",
+  "description": "취업 스펙 인식 설문조사",
+  "scripts": {
+    "start": "serve . -p $PORT"
+  },
+  "dependencies": {
+    "serve": "^14.2.3"
+  }
+}
