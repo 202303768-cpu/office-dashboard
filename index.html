@@ -2886,12 +2886,23 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 // CARD 5: POSTIT
 // ============================================================
 function initPostit() {
-  [
-    { id:1, text:'Q2 목표 달성까지\n화이팅!', color:'#fef08a', x:15, y:15, pinned:false, priv:false },
-    { id:2, text:'고객사 미팅\n6/3 오후 3시', color:'#bbf7d0', x:165, y:35, pinned:true, priv:false },
-    { id:3, text:'비밀 메모\n인사고과 준비', color:'#e9d5ff', x:45, y:140, pinned:false, priv:true },
-  ].forEach(p=>S.postits.push(p));
+  const saved = localStorage.getItem('postitData_v1');
+  if (saved) {
+    try { S.postits = JSON.parse(saved); S.postitNextId = Math.max(...S.postits.map(p=>p.id), 9) + 1; }
+    catch(e) {}
+  }
+  if (!S.postits.length) {
+    [
+      { id:1, text:'Q2 목표 달성까지\n화이팅!', color:'#fef08a', x:15, y:15, pinned:false, priv:false },
+      { id:2, text:'고객사 미팅\n6/3 오후 3시', color:'#bbf7d0', x:165, y:35, pinned:true, priv:false },
+      { id:3, text:'비밀 메모\n인사고과 준비', color:'#e9d5ff', x:45, y:140, pinned:false, priv:true },
+    ].forEach(p=>S.postits.push(p));
+  }
   renderPostits();
+}
+
+function savePostits() {
+  try { localStorage.setItem('postitData_v1', JSON.stringify(S.postits)); } catch(e){}
 }
 
 function setPostitColor(c,btn) {
@@ -2905,6 +2916,12 @@ function addPostit() {
   const r = board.getBoundingClientRect();
   S.postits.push({ id, text:'새 메모', color:S.postitColor, x:Math.random()*(r.width-130), y:Math.random()*(r.height-95), pinned:false, priv:false });
   renderPostits();
+  savePostits();
+  // 새 메모 텍스트 즉시 편집 포커스
+  setTimeout(()=>{
+    const el = document.querySelector(`.postit[data-id="${id}"] .postit-content`);
+    if (el) { el.focus(); document.execCommand('selectAll',false,null); }
+  }, 50);
 }
 
 function renderPostits() {
@@ -2927,22 +2944,32 @@ function renderPostits() {
 }
 
 function makeDraggable(el,p) {
-  let ox=0,oy=0;
+  let ox=0,oy=0,moved=false;
   el.addEventListener('mousedown',e=>{
-    if (e.target.contentEditable==='true' && document.activeElement===e.target) return;
+    // contenteditable 영역은 드래그 막고 텍스트 편집 허용
+    if (e.target.contentEditable==='true') return;
+    if (e.target.tagName==='BUTTON' || e.target.tagName==='SPAN') return;
+    moved=false;
     ox=e.clientX-p.x; oy=e.clientY-p.y;
-    const move=ev=>{p.x=ev.clientX-ox;p.y=ev.clientY-oy;el.style.left=p.x+'px';el.style.top=p.y+'px';};
-    const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);};
+    const move=ev=>{
+      moved=true;
+      p.x=ev.clientX-ox; p.y=ev.clientY-oy;
+      el.style.left=p.x+'px'; el.style.top=p.y+'px';
+    };
+    const up=()=>{
+      document.removeEventListener('mousemove',move);
+      document.removeEventListener('mouseup',up);
+    };
     document.addEventListener('mousemove',move);
     document.addEventListener('mouseup',up);
     e.preventDefault();
   });
 }
 
-function togglePin(id) { const p=S.postits.find(p=>p.id===id); if(p){p.pinned=!p.pinned;renderPostits();} }
-function togglePriv(id) { const p=S.postits.find(p=>p.id===id); if(p){p.priv=!p.priv;renderPostits();} }
-function deletePostit(id) { S.postits=S.postits.filter(p=>p.id!==id);renderPostits(); }
-function savePostitText(id,t) { const p=S.postits.find(p=>p.id===id); if(p) p.text=t; }
+function togglePin(id) { const p=S.postits.find(p=>p.id===id); if(p){p.pinned=!p.pinned;renderPostits();savePostits();} }
+function togglePriv(id) { const p=S.postits.find(p=>p.id===id); if(p){p.priv=!p.priv;renderPostits();savePostits();} }
+function deletePostit(id) { S.postits=S.postits.filter(p=>p.id!==id);renderPostits();savePostits(); }
+function savePostitText(id,t) { const p=S.postits.find(p=>p.id===id); if(p){p.text=t;savePostits();} }
 
 // ============================================================
 // CARD 6: FX + NEWS
