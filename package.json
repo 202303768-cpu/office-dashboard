@@ -1,9 +1,10 @@
 {
-  "name": "survey-app",
+  "name": "office-dashboard",
   "version": "1.0.0",
-  "description": "취업 스펙 인식 설문조사",
+  "description": "업무 대시보드",
   "scripts": {
-    "start": "serve . -p $PORT"
+    "start": "serve . -l ${PORT:-3000}",
+    "dev": "serve . -l 3000"
   },
   "dependencies": {
     "serve": "^14.2.3"
