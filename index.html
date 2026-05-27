@@ -909,7 +909,10 @@ ul{list-style:none}
   <div class="urgent-box">
     <h2>🚨 긴급 공지</h2>
     <div id="urgentContent" style="font-size:13px;color:var(--text);margin-bottom:14px;line-height:1.6"></div>
-    <button style="padding:7px 18px;background:var(--danger);color:#fff;border-radius:7px;font-weight:600;border:none;cursor:pointer" onclick="document.getElementById('urgentPopup').classList.remove('show')">확인</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button style="padding:7px 18px;background:var(--danger);color:#fff;border-radius:7px;font-weight:600;border:none;cursor:pointer" onclick="closeUrgentPopup(false)">확인</button>
+      <button style="padding:7px 14px;background:var(--surface2);color:var(--text2);border-radius:7px;font-weight:600;border:1px solid var(--border);cursor:pointer;font-size:12px" onclick="closeUrgentPopup(true)">오늘 하루 보지 않기</button>
+    </div>
   </div>
 </div>
 
@@ -3725,8 +3728,22 @@ function addNotice() {
 }
 
 function showUrgentPopup(n) {
-  document.getElementById('urgentContent').textContent=n.title;
+  const today = dayjs().format('YYYY-MM-DD');
+  const dismissed = localStorage.getItem('urgentDismissed_' + n.id);
+  if (dismissed === today) return; // 오늘 이미 닫은 경우 표시 안 함
+  document.getElementById('urgentPopup').dataset.noticeId = n.id;
+  document.getElementById('urgentContent').textContent = n.title;
   document.getElementById('urgentPopup').classList.add('show');
+}
+
+function closeUrgentPopup(skipToday) {
+  const popup = document.getElementById('urgentPopup');
+  if (skipToday) {
+    const id = popup.dataset.noticeId;
+    const today = dayjs().format('YYYY-MM-DD');
+    if (id) localStorage.setItem('urgentDismissed_' + id, today);
+  }
+  popup.classList.remove('show');
 }
 
 function renderIssues() {
