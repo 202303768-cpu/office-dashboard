@@ -2408,7 +2408,8 @@ function renderFinInsight() {
 // ============================================================
 let gmailTokenClient = null;
 let gmailAccessToken = null;
-let _pendingSend = false; // 토큰 콜백 후 실제 발송 트리거용
+let gmailTokenExpiry = 0;   // 토큰 만료 시각 (ms)
+let _pendingSend = false;
 
 function initGmailClient() {
   if (!window.google || !google.accounts || !google.accounts.oauth2) return;
@@ -2418,13 +2419,26 @@ function initGmailClient() {
     callback: (resp) => {
       if (resp.error) {
         setMailBtn('idle');
-        toast('Gmail 권한 오류: ' + resp.error, 'error');
+        // access_denied 는 팝업 차단 or 동의 거부 → prompt 있는 재시도 안내
+        if (resp.error === 'access_denied' || resp.error === 'interaction_required') {
+          toast('메일 권한이 필요합니다. 한 번만 동의해 주세요.', 'warn');
+          // 명시적 동의 팝업 재시도
+          gmailTokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+          toast('Gmail 권한 오류: ' + resp.error, 'danger');
+        }
         return;
       }
       gmailAccessToken = resp.access_token;
+      // expires_in(초) 기준으로 만료 시각 저장 (30초 여유)
+      gmailTokenExpiry = Date.now() + ((resp.expires_in || 3600) - 30) * 1000;
       if (_pendingSend) { _pendingSend = false; doSendFinanceEmail(); }
     },
   });
+}
+
+function isGmailTokenValid() {
+  return gmailAccessToken && Date.now() < gmailTokenExpiry;
 }
 
 function sendDailyReport() {
@@ -2437,8 +2451,13 @@ function sendDailyReport() {
     return;
   }
   setMailBtn('sending');
+  // 토큰이 유효하면 바로 발송 (팝업 없음)
+  if (isGmailTokenValid()) {
+    doSendFinanceEmail();
+    return;
+  }
   _pendingSend = true;
-  // prompt:'' → 이미 권한 있으면 화면 없이 토큰 발급, 없으면 동의 화면 표시
+  // prompt:'' → 이미 동의한 계정이면 팝업 없이 토큰 발급
   gmailTokenClient.requestAccessToken({ prompt: '' });
 }
 
