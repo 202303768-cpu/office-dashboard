@@ -511,6 +511,19 @@ ul{list-style:none}
   <!-- HEADER -->
   <div id="header">
     <div class="header-logo">⚡ 업무 대시보드</div>
+    <div id="headerClock" style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text2);flex-shrink:0">
+      <div style="display:flex;flex-direction:column;line-height:1.3">
+        <span id="headerDate" style="font-weight:600;color:var(--text);font-size:11px"></span>
+        <span id="headerTime" style="font-size:13px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums"></span>
+      </div>
+      <div id="headerWeather" style="display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+        <span id="weatherIcon" style="font-size:16px">⏳</span>
+        <div style="display:flex;flex-direction:column;line-height:1.3">
+          <span id="weatherTemp" style="font-size:12px;font-weight:700;color:var(--text)">--°C</span>
+          <span id="weatherDesc" style="font-size:9px;color:var(--text3)">날씨 로딩 중</span>
+        </div>
+      </div>
+    </div>
     <div class="header-center">🔐 관리자 모드 비밀번호: 0000</div>
     <span id="kpiBadge" class="header-badge">⚠ KPI 위험</span>
     <div class="header-right">
@@ -1752,8 +1765,75 @@ function initApp() {
   setInterval(loadFxNews, 5*60*1000);
   startMailScheduler();
   requestNotifPerm();
+  initHeaderClock();
   const urgent = S.notices.find(n=>n.urgent && !n.read);
   if (urgent) showUrgentPopup(urgent);
+}
+
+// ============================================================
+// HEADER CLOCK + WEATHER
+// ============================================================
+const WEATHER_ICONS = {
+  0:'☀️', 1:'🌤', 2:'⛅', 3:'☁️',
+  45:'🌫', 48:'🌫',
+  51:'🌦', 53:'🌦', 55:'🌧',
+  61:'🌧', 63:'🌧', 65:'🌧',
+  71:'🌨', 73:'🌨', 75:'🌨',
+  80:'🌦', 81:'🌧', 82:'⛈',
+  95:'⛈', 96:'⛈', 99:'⛈',
+};
+const WEATHER_DESC = {
+  0:'맑음', 1:'대체로 맑음', 2:'구름 조금', 3:'흐림',
+  45:'안개', 48:'안개',
+  51:'이슬비', 53:'이슬비', 55:'이슬비',
+  61:'비', 63:'비', 65:'폭우',
+  71:'눈', 73:'눈', 75:'폭설',
+  80:'소나기', 81:'소나기', 82:'강한 소나기',
+  95:'뇌우', 96:'뇌우', 99:'뇌우',
+};
+const DAY_KO = ['일','월','화','수','목','금','토'];
+
+function initHeaderClock() {
+  function tick() {
+    const now = dayjs();
+    document.getElementById('headerDate').textContent =
+      `${now.format('YYYY.MM.DD')} (${DAY_KO[now.day()]})`;
+    document.getElementById('headerTime').textContent = now.format('HH:mm:ss');
+  }
+  tick();
+  setInterval(tick, 1000);
+  loadWeather();
+  setInterval(loadWeather, 30 * 60 * 1000); // 30분마다 갱신
+}
+
+async function loadWeather() {
+  try {
+    // 위치 먼저 가져오기
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, {timeout:5000})
+    );
+    const {latitude: lat, longitude: lon} = pos.coords;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+    const data = await fetch(url).then(r=>r.json());
+    const w = data.current_weather;
+    const code = w.weathercode;
+    document.getElementById('weatherIcon').textContent = WEATHER_ICONS[code] || '🌡';
+    document.getElementById('weatherTemp').textContent = `${Math.round(w.temperature)}°C`;
+    document.getElementById('weatherDesc').textContent = WEATHER_DESC[code] || '날씨';
+  } catch(e) {
+    // 위치 거부 시 서울 기본값으로 fallback
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=37.57&longitude=126.98&current_weather=true&timezone=Asia%2FSeoul`;
+      const data = await fetch(url).then(r=>r.json());
+      const w = data.current_weather;
+      const code = w.weathercode;
+      document.getElementById('weatherIcon').textContent = WEATHER_ICONS[code] || '🌡';
+      document.getElementById('weatherTemp').textContent = `${Math.round(w.temperature)}°C`;
+      document.getElementById('weatherDesc').textContent = (WEATHER_DESC[code] || '날씨') + ' (서울)';
+    } catch(e2) {
+      document.getElementById('weatherDesc').textContent = '날씨 불러오기 실패';
+    }
+  }
 }
 
 // ============================================================
